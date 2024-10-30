@@ -1,21 +1,13 @@
 // src/components/common/CircularProgress.tsx
 import React from 'react';
 import { View } from 'react-native';
-import Svg, {
-  Circle,
-  Defs,
-  LinearGradient,
-  Stop
-} from 'react-native-svg';
+import Svg, { Circle } from 'react-native-svg';
+import { cn } from '../../lib/utils';
 import Animated, {
   useAnimatedProps,
   withTiming,
   withSpring,
-  withRepeat,
-  useAnimatedStyle,
-  interpolate,
 } from 'react-native-reanimated';
-import { cn } from '../../lib/utils';
 
 const AnimatedCircle = Animated.createAnimatedComponent(Circle);
 
@@ -24,23 +16,42 @@ interface CircularProgressProps {
   strokeWidth: number;
   progress: number;
   children?: React.ReactNode;
-  isActive?: boolean;
+  mode: 'focus' | 'shortBreak' | 'longBreak';
 }
+
+const getModeColor = (mode: 'focus' | 'shortBreak' | 'longBreak') => {
+  switch (mode) {
+    case 'focus':
+      return '#3B82F6'; // blue
+    case 'shortBreak':
+      return '#22C55E'; // green
+    case 'longBreak':
+      return '#8B5CF6'; // purple
+  }
+};
 
 export const CircularProgress: React.FC<CircularProgressProps> = ({
   size,
   strokeWidth,
   progress,
-  children
+  children,
+  mode
 }) => {
   const center = size / 2;
   const radius = (size - strokeWidth) / 2;
   const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (progress * circumference);
+
+  const animatedProps = useAnimatedProps(() => ({
+    strokeDashoffset: withTiming(
+      circumference - (progress * circumference),
+      { duration: 500 }
+    ),
+  }));
 
   return (
     <View className={cn("items-center justify-center")}>
       <Svg width={size} height={size}>
+        {/* Background Circle */}
         <Circle
           cx={center}
           cy={center}
@@ -49,21 +60,24 @@ export const CircularProgress: React.FC<CircularProgressProps> = ({
           strokeWidth={strokeWidth}
           fill="transparent"
         />
-        <Circle
+        {/* Progress Circle */}
+        <AnimatedCircle
           cx={center}
           cy={center}
           r={radius}
-          stroke="#3B82F6"
+          stroke={getModeColor(mode)}
           strokeWidth={strokeWidth}
           fill="transparent"
           strokeDasharray={`${circumference} ${circumference}`}
-          strokeDashoffset={strokeDashoffset}
+          animatedProps={animatedProps}
           strokeLinecap="round"
           transform={`rotate(-90 ${center} ${center})`}
         />
       </Svg>
       <View className="absolute">
-        {children}
+        <Animated.View>
+          {children}
+        </Animated.View>
       </View>
     </View>
   );

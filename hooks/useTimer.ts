@@ -2,141 +2,83 @@
 import { useState, useCallback, useRef, useEffect } from 'react';
 import { AppState } from 'react-native';
 import * as Haptics from 'expo-haptics';
-import { useStatistics } from './useStatistics';
 
 export type TimerMode = 'focus' | 'shortBreak' | 'longBreak';
 
-interface TimerState {
-  timeRemaining: number;
-  isActive: boolean;
-  isPaused: boolean;
-  mode: TimerMode;
-  rounds: number;
-  totalFocusTime: number;
-}
-
 export const useTimer = (initialTime: number = 25 * 60) => {
-  const [state, setState] = useState<TimerState>({
-    timeRemaining: initialTime,
-    isActive: false,
-    isPaused: false,
-    mode: 'focus',
-    rounds: 0,
-    totalFocusTime: 0,
-  });
+  const [timeRemaining, setTimeRemaining] = useState(initialTime);
+  const [mode, setMode] = useState<TimerMode>('focus');
+  const [isActive, setIsActive] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
 
-  const intervalRef = useRef<NodeJS.Timer>();
+  const intervalRef = useRef<NodeJS.Timeout>();
   const backgroundTimeRef = useRef<number>();
 
-  const { recordSession } = useStatistics();
-  const sessionStartTimeRef = useRef<Date>();
-
-  const handleTimerComplete = useCallback(async () => {
-    if (sessionStartTimeRef.current) {
-      const endTime = new Date();
-      await recordSession({
-        startTime: sessionStartTimeRef.current,
-        endTime,
-        duration: Math.floor((endTime.getTime() - sessionStartTimeRef.current.getTime()) / 1000),
-        wasCompleted: true,
-        mode: state.mode,
-      });
+  const getModeDuration = (timerMode: TimerMode) => {
+    switch (timerMode) {
+      case 'focus':
+        return 25 * 60;
+      case 'shortBreak':
+        return 5 * 60;
+      case 'longBreak':
+        return 15 * 60;
     }
-    const nextMode = state.mode === 'focus'
-      ? (state.rounds % 4 === 3 ? 'longBreak' : 'shortBreak')
-      : 'focus';
-
-    const duration = nextMode === 'focus'
-      ? initialTime
-      : nextMode === 'shortBreak'
-        ? 5 * 60
-        : 15 * 60;
-
-    // Use haptic feedback instead of sound
-    Haptics.notificationAsync(
-      Haptics.NotificationFeedbackType.Success
-    );
-
-    setState(prev => ({
-      ...prev,
-      timeRemaining: duration,
-      mode: nextMode,
-      rounds: prev.mode === 'focus' ? prev.rounds + 1 : prev.rounds,
-      isActive: false,
-    }));
-  }, [state.mode, state.rounds, initialTime]);
+  };
 
   const startTimer = useCallback(() => {
-    // Medium impact for starting timer
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
-    sessionStartTimeRef.current = new Date();
-    setState(prev => ({ ...prev, isActive: true, isPaused: false }));
+    setIsActive(true);
+    setIsPaused(false);
+
     intervalRef.current = setInterval(() => {
-      setState(prev => {
-        if (prev.timeRemaining <= 1) {
-          clearInterval(intervalRef.current as NodeJS.Timeout);
-          handleTimerComplete();
-          return prev;
+      setTimeRemaining(prev => {
+        if (prev <= 1) {
+          clearInterval(intervalRef.current);
+          setIsActive(false);
+          return getModeDuration(mode);
         }
-        return {
-          ...prev,
-          timeRemaining: prev.timeRemaining - 1,
-          totalFocusTime: prev.mode === 'focus'
-            ? prev.totalFocusTime + 1
-            : prev.totalFocusTime,
-        };
+        return prev - 1;
       });
     }, 1000);
-  }, [handleTimerComplete]);
+  }, [mode]);
 
   const pauseTimer = useCallback(() => {
-    if (sessionStartTimeRef.current) {
-      const endTime = new Date();
-      recordSession({
-        startTime: sessionStartTimeRef.current,
-        endTime,
-        duration: Math.floor((endTime.getTime() - sessionStartTimeRef.current.getTime()) / 1000),
-        wasCompleted: false,
-        mode: state.mode,
-      });
-    }
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current as NodeJS.Timeout);
-    }
-    // Light impact for pausing
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setState(prev => ({ ...prev, isActive: false, isPaused: true }));
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    setIsActive(false);
+    setIsPaused(true);
   }, []);
 
-  const resetTimer = useCallback((newTime?: number) => {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current as NodeJS.Timeout);
-    }
-    // Light impact for reset
+  const resetTimer = useCallback(() => {
     Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-    setState(prev => ({
-      ...prev,
-      timeRemaining: newTime || initialTime,
-      isActive: false,
-      isPaused: false,
-    }));
-  }, [initialTime]);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+    setTimeRemaining(getModeDuration(mode));
+    setIsActive(false);
+    setIsPaused(false);
+  }, [mode]);
 
-  // Handle app state changes
+  const switchMode = useCallback((newMode: TimerMode) => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Medium);
+    setMode(newMode);
+    setTimeRemaining(getModeDuration(newMode));
+    setIsActive(false);
+    setIsPaused(false);
+  }, []);
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', nextAppState => {
-      if (nextAppState === 'active' && backgroundTimeRef.current && state.isActive) {
+      if (nextAppState === 'active' && backgroundTimeRef.current && isActive) {
         const now = Date.now();
         const timeInBackground = now - backgroundTimeRef.current;
-        const newTimeRemaining = Math.max(
-          0,
-          state.timeRemaining - Math.floor(timeInBackground / 1000)
-        );
-        setState(prev => ({ ...prev, timeRemaining: newTimeRemaining }));
-      } else if (nextAppState === 'background' && state.isActive) {
+        setTimeRemaining(prev => Math.max(0, prev - Math.floor(timeInBackground / 1000)));
+      } else if (nextAppState === 'background' && isActive) {
         backgroundTimeRef.current = Date.now();
         if (intervalRef.current) {
-          clearInterval(intervalRef.current as NodeJS.Timeout);
+          clearInterval(intervalRef.current);
         }
       }
     });
@@ -144,21 +86,22 @@ export const useTimer = (initialTime: number = 25 * 60) => {
     return () => {
       subscription.remove();
       if (intervalRef.current) {
-        clearInterval(intervalRef.current as NodeJS.Timeout);
+        clearInterval(intervalRef.current);
       }
     };
-  }, [state.isActive, state.timeRemaining]);
+  }, [isActive]);
+
+  const progress = timeRemaining / getModeDuration(mode);
 
   return {
-    ...state,
+    timeRemaining,
+    mode,
+    isActive,
+    isPaused,
+    progress,
     startTimer,
     pauseTimer,
     resetTimer,
-    progress: state.timeRemaining / (state.mode === 'focus'
-      ? initialTime
-      : state.mode === 'shortBreak'
-        ? 5 * 60
-        : 15 * 60
-    ),
+    switchMode
   };
 };

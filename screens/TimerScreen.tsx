@@ -1,13 +1,7 @@
 // src/screens/TimerScreen.tsx
 import React from "react";
-import { View, TouchableOpacity } from "react-native";
+import { View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
-import Animated, {
-  FadeIn,
-  FadeOut,
-  SlideInDown,
-  SlideOutDown,
-} from "react-native-reanimated";
 import {
   Typography,
   Card,
@@ -20,21 +14,45 @@ import {
   Pause,
   RotateCcw,
   ChevronLeft,
-  Bell,
-  Lock,
+  Coffee,
+  Timer as TimerIcon,
 } from "lucide-react-native";
-import { useTimer } from "../hooks/useTimer";
-import { useNavigation } from "@react-navigation/native";
-import * as Haptics from "expo-haptics";
+import Animated, {
+  FadeIn,
+  FadeOut,
+  SlideInDown,
+  Layout,
+} from "react-native-reanimated";
+import { useTimer, TimerMode } from "../hooks/useTimer";
 import { cn } from "../lib/utils";
+import { useNavigation } from "@react-navigation/native";
+import type { NativeStackNavigationProp } from "@react-navigation/native-stack";
+import type { RootStackParamList } from "../types/navigation";
 
-const FOCUS_TIMES = [
-  { label: "15", value: 15 * 60 },
-  { label: "25", value: 25 * 60 },
-  { label: "45", value: 45 * 60 },
-];
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
-// Add this helper function
+const getModeColor = (mode: "focus" | "shortBreak" | "longBreak") => {
+  switch (mode) {
+    case "focus":
+      return "blue";
+    case "shortBreak":
+      return "green";
+    case "longBreak":
+      return "purple";
+  }
+};
+
+const getModeText = (mode: "focus" | "shortBreak" | "longBreak") => {
+  switch (mode) {
+    case "focus":
+      return "Focus Session";
+    case "shortBreak":
+      return "Short Break";
+    case "longBreak":
+      return "Long Break";
+  }
+};
+
 const formatTime = (seconds: number): string => {
   const mins = Math.floor(seconds / 60);
   const secs = seconds % 60;
@@ -45,66 +63,90 @@ const formatTime = (seconds: number): string => {
 
 export const TimerScreen = () => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const {
     timeRemaining,
+    mode,
     isActive,
     isPaused,
+    completedSessions,
+    progress,
     startTimer,
     pauseTimer,
     resetTimer,
-    progress
-  } = useTimer(25 * 60);
+    switchMode,
+  } = useTimer();
+
+  const modeColor = getModeColor(mode);
 
   return (
-    <View
-      className="flex-1 bg-[#121212]"
-      style={{ paddingTop: insets.top }}
-    >
+    <View className="flex-1 bg-[#121212]" style={{ paddingTop: insets.top }}>
       {/* Header */}
-      <View className="px-6 py-4 flex-row justify-between items-center">
-        <IconButton
-          icon={<ChevronLeft size={24} color="#fff" />}
-          onPress={() => navigation.goBack()}
-          variant="dark"
-        />
-        <View className="flex-row space-x-4">
+      <Animated.View
+        entering={FadeIn}
+        className="px-6 py-4 flex-row justify-between items-center"
+      >
           <IconButton
-            icon={<Lock size={22} color="#fff" />}
-            onPress={() => {}}
+            icon={<ChevronLeft size={24} color="#fff" />}
+            onPress={() => navigation.goBack()}
             variant="dark"
           />
-          <IconButton
-            icon={<Bell size={22} color="#fff" />}
-            onPress={() => {}}
-            variant="dark"
-          />
-        </View>
-      </View>
+          <View className="flex-row space-x-4">
+            <IconButton
+              icon={<Coffee size={22} color="#fff" />}
+              onPress={() =>
+                switchMode(mode === "focus" ? "shortBreak" : "focus")
+              }
+              variant="dark"
+            />
+            <IconButton
+              icon={<TimerIcon size={22} color="#fff" />}
+              onPress={() => {}}
+              variant="dark"
+            />
+          </View>
+      </Animated.View>
 
-      {/* Timer Display */}
       <View className="flex-1 px-6">
-        <View className="items-center justify-center flex-1">
+        <Animated.View
+          entering={SlideInDown.delay(300)}
+          className="items-center justify-center flex-1">
+          {/* Timer Display */}
           <CircularProgress
             size={300}
             strokeWidth={12}
             progress={progress}
+            mode={mode}
           >
-            <View className="items-center">
+            <Animated.View
+              entering={FadeIn.duration(800)}
+              className="items-center"
+            >
               <Typography
                 variant="h1"
                 className="text-white text-6xl font-bold"
               >
                 {formatTime(timeRemaining)}
               </Typography>
-              <Typography className="text-gray-400 mt-2">
-                {isActive ? "Focusing..." : "Focus Session"}
+              <Typography
+                className={cn(
+                  "mt-2",
+                  mode === 'focus' ? 'text-blue-400' :
+                  mode === 'shortBreak' ? 'text-green-400' :
+                  'text-purple-400'
+                )}
+              >
+                {getModeText(mode)}
               </Typography>
-            </View>
+            </Animated.View>
           </CircularProgress>
 
+
           {/* Timer Controls */}
-          <View className="mt-12 w-full space-y-6">
+          <Animated.View
+            className="mt-12 w-full space-y-6"
+            layout={Layout.springify()}
+          >
             <View className="flex-row justify-center space-x-4">
               <Button
                 icon={isActive ?
@@ -113,48 +155,29 @@ export const TimerScreen = () => {
                 }
                 title={isActive ? "Pause" : "Start"}
                 onPress={isActive ? pauseTimer : startTimer}
-                className="w-48 h-14 bg-blue-600"
+                className={cn(
+                  "w-48 h-14",
+                  mode === 'focus' ? 'bg-blue-600' :
+                  mode === 'shortBreak' ? 'bg-green-600' :
+                  'bg-purple-600'
+                )}
               />
               {(isActive || isPaused) && (
-                <IconButton
-                  icon={<RotateCcw size={24} color="#fff" />}
-                  onPress={() => resetTimer()}
-                  variant="dark"
-                  className="h-14 w-14 bg-[#2A2A2A]"
-                />
+                <Animated.View
+                  entering={FadeIn}
+                  exiting={FadeOut}
+                >
+                  <IconButton
+                    icon={<RotateCcw size={24} color="#fff" />}
+                    onPress={resetTimer}
+                    variant="dark"
+                    className="h-14 w-14 bg-[#2A2A2A]"
+                  />
+                </Animated.View>
               )}
             </View>
-
-            {/* Time Presets */}
-            <Card className="bg-[#1E1E1E] p-4 rounded-2xl border border-[#2A2A2A]">
-              <View className="flex-row justify-between">
-                {FOCUS_TIMES.map((time) => (
-                  <TouchableOpacity
-                    key={time.value}
-                    className={`
-                      px-6 py-3 rounded-xl
-                      ${time.value === 25 * 60 ? "bg-[#2A2A2A]" : "bg-transparent"}
-                    `}
-                    onPress={() => {
-                      if (!isActive) {
-                        resetTimer(time.value);
-                      }
-                    }}
-                  >
-                    <Typography
-                      className={`
-                        text-center
-                        ${time.value === 25 * 60 ? "text-white" : "text-gray-400"}
-                      `}
-                    >
-                      {time.label}m
-                    </Typography>
-                  </TouchableOpacity>
-                ))}
-              </View>
-            </Card>
-          </View>
-        </View>
+          </Animated.View>
+        </Animated.View>
       </View>
     </View>
   );
