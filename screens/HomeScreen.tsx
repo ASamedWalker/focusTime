@@ -93,14 +93,14 @@ export const HomeScreen = () => {
                 title="Block Apps"
                 icon={<Lock size={18} color="#fff" />}
                 variant="secondary"
-                onPress={() => {}}
+                onPress={() => navigation.navigate('BlockedApps')}
                 className="flex-1 bg-[#2A2A2A] h-12 mr-2"
               />
               <Button
                 title="Timer"
                 icon={<Timer size={18} color="#fff" />}
                 variant="secondary"
-                onPress={() => {}}
+                onPress={() => navigation.navigate('TimerSettings')}
                 className="flex-1 bg-[#2A2A2A] h-12 ml-2"
               />
             </View>

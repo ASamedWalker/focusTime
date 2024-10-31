@@ -13,20 +13,20 @@ import {
   ChevronLeft,
   Search,
   Shield,
-  Smartphone,
-  AlertCircle
+  Smartphone
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
-import { AppItem } from '../components/apps/AppItem';
+import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
+import type { RootStackParamList } from '../types/navigation';
+
+type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface AppInfo {
   id: string;
   name: string;
   isBlocked: boolean;
-  icon?: string;
 }
 
-// Mock data - will be replaced with real app data
 const MOCK_APPS: AppInfo[] = [
   { id: '1', name: 'Instagram', isBlocked: false },
   { id: '2', name: 'Facebook', isBlocked: false },
@@ -38,7 +38,7 @@ const MOCK_APPS: AppInfo[] = [
 
 export const BlockedAppsScreen = () => {
   const insets = useSafeAreaInsets();
-  const navigation = useNavigation();
+  const navigation = useNavigation<NavigationProp>();
   const [searchQuery, setSearchQuery] = useState('');
   const [apps, setApps] = useState<AppInfo[]>(MOCK_APPS);
 
@@ -58,6 +58,39 @@ export const BlockedAppsScreen = () => {
 
   const blockedAppsCount = apps.filter(app => app.isBlocked).length;
 
+  const renderAppItem = (app: AppInfo) => (
+    <Card
+      key={app.id}
+      className="bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] mb-3"
+    >
+      <View className="flex-row items-center justify-between">
+        <View className="flex-row items-center flex-1">
+          <View className="bg-[#2A2A2A] p-2 rounded-lg mr-3">
+            <Smartphone size={24} color="#3B82F6" />
+          </View>
+          <View className="flex-1">
+            <Typography className="text-white font-medium">
+              {app.name}
+            </Typography>
+          </View>
+        </View>
+        <Button
+          variant={app.isBlocked ? 'primary' : 'outline'}
+          title={app.isBlocked ? 'Blocked' : 'Block'}
+          onPress={() => toggleAppBlock(app.id)}
+          className={`
+            px-6 h-11 justify-center items-center
+            ${app.isBlocked
+              ? 'bg-blue-600'
+              : 'border border-[#2A2A2A] bg-[#2A2A2A]'
+            }
+          `}
+          textClassName="text-white text-sm"
+        />
+      </View>
+    </Card>
+  );
+
   return (
     <View
       className="flex-1 bg-[#121212]"
@@ -75,13 +108,11 @@ export const BlockedAppsScreen = () => {
             Block Apps
           </Typography>
         </View>
-        <View className="flex-row items-center">
-          <View className="bg-blue-900/20 px-3 py-1 rounded-full flex-row items-center">
-            <Shield size={14} color="#3B82F6" />
-            <Typography className="text-white ml-2">
-              {blockedAppsCount}
-            </Typography>
-          </View>
+        <View className="bg-blue-900/20 px-3 py-1 rounded-full flex-row items-center">
+          <Shield size={14} color="#3B82F6" />
+          <Typography className="text-white ml-2">
+            {blockedAppsCount}
+          </Typography>
         </View>
       </View>
 
@@ -105,17 +136,8 @@ export const BlockedAppsScreen = () => {
         className="flex-1 px-6"
         showsVerticalScrollIndicator={false}
       >
-        <View className="space-y-3">
-          {filteredApps.map(app => (
-            <AppItem
-              key={app.id}
-              app={app}
-              onToggle={() => toggleAppBlock(app.id)}
-            />
-          ))}
-        </View>
+        {filteredApps.map(renderAppItem)}
       </ScrollView>
     </View>
   );
 };
-
