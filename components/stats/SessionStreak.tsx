@@ -2,7 +2,7 @@
 import React from 'react';
 import { View } from 'react-native';
 import { Typography, Card } from '../common';
-import { Flame } from 'lucide-react-native';
+import { Flame, Trophy } from 'lucide-react-native';
 
 interface SessionStreakProps {
   currentStreak: number;
@@ -30,15 +30,20 @@ export const SessionStreak: React.FC<SessionStreakProps> = ({
           </Typography>
         </View>
       </View>
+
       <View className="flex-row justify-between">
-        <View>
-          <Typography className="text-gray-400 mb-1">Best Streak</Typography>
+        <View className="space-y-1">
+          <View className="flex-row items-center space-x-2">
+            <Trophy size={16} color="#F59E0B" />
+            <Typography className="text-gray-400">Best Streak</Typography>
+          </View>
           <Typography className="text-white font-medium">
             {bestStreak} Days
           </Typography>
         </View>
-        <View>
-          <Typography className="text-gray-400 mb-1">Total Sessions</Typography>
+
+        <View className="space-y-1">
+          <Typography className="text-gray-400">Total Sessions</Typography>
           <Typography className="text-white font-medium">
             {totalSessions}
           </Typography>

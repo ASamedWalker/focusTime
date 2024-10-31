@@ -11,3 +11,4 @@ export * from './Header';
 export * from './Logo';
 export * from './CircularProgress';
 export * from './StatsDisplay';
+export * from './Input';

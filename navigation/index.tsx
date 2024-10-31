@@ -6,6 +6,7 @@ import { HomeScreen } from "../screens/HomeScreen";
 import { SettingsScreen } from "../screens/SettingsScreen";
 import { TimerScreen } from "../screens/TimerScreen";
 import { StatsScreen } from "../screens/StatsScreen";
+import { BlockedAppsScreen } from "../screens/BlockedAppsScreen";
 import { RootStackParamList } from "../types/navigation";
 
 const Stack = createNativeStackNavigator<RootStackParamList>();
@@ -32,6 +33,11 @@ export const Navigation = () => {
         <Stack.Screen
           name="Stats"
           component={StatsScreen}
+          options={{ headerShown: false }}
+        />
+        <Stack.Screen
+          name="BlockedApps"
+          component={BlockedAppsScreen}
           options={{ headerShown: false }}
         />
         <Stack.Screen name="Settings" component={SettingsScreen} />

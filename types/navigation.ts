@@ -5,6 +5,7 @@ export type RootStackParamList = {
   Timer: undefined;
   Profile: undefined;
   Stats: undefined;
+  BlockedApps: undefined;
 };
 
 declare global {
