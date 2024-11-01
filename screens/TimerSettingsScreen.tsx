@@ -17,13 +17,29 @@ import {
 } from 'lucide-react-native';
 import { useNavigation } from '@react-navigation/native';
 import Slider from '@react-native-community/slider';
+import { useTimerSettings } from '../context/TimerSettingsContext';
+import * as Haptics from 'expo-haptics';
 
 export const TimerSettingsScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation();
-  const [focusDuration, setFocusDuration] = React.useState(25);
-  const [shortBreakDuration, setShortBreakDuration] = React.useState(5);
-  const [longBreakDuration, setLongBreakDuration] = React.useState(15);
+  const { settings, updateSettings } = useTimerSettings();
+
+  const handleSliderChange = async (
+    value: number,
+    setting: 'focusDuration' | 'shortBreakDuration' | 'longBreakDuration'
+  ) => {
+    await Haptics.selectionAsync();
+    updateSettings({ [setting]: value });
+  };
+
+  const handleToggle = async (
+    value: boolean,
+    setting: 'soundEnabled' | 'vibrationEnabled'
+  ) => {
+    await Haptics.selectionAsync();
+    updateSettings({ [setting]: value });
+  };
 
   return (
     <View
@@ -54,14 +70,14 @@ export const TimerSettingsScreen = () => {
                 Focus Duration
               </Typography>
               <Typography className="text-gray-400">
-                {focusDuration} minutes
+                {settings.focusDuration} minutes
               </Typography>
             </View>
           </View>
 
           <Slider
-            value={focusDuration}
-            onValueChange={setFocusDuration}
+            value={settings.focusDuration}
+            onValueChange={value => handleSliderChange(value, 'focusDuration')}
             minimumValue={15}
             maximumValue={60}
             step={5}
@@ -87,15 +103,15 @@ export const TimerSettingsScreen = () => {
                 Break Duration
               </Typography>
               <Typography className="text-gray-400">
-                Short: {shortBreakDuration}m, Long: {longBreakDuration}m
+                Short: {settings.shortBreakDuration}m, Long: {settings.longBreakDuration}m
               </Typography>
             </View>
           </View>
 
           <Typography className="text-gray-400 mb-4">Short Break</Typography>
           <Slider
-            value={shortBreakDuration}
-            onValueChange={setShortBreakDuration}
+            value={settings.shortBreakDuration}
+            onValueChange={value => handleSliderChange(value, 'shortBreakDuration')}
             minimumValue={3}
             maximumValue={15}
             step={1}
@@ -107,8 +123,8 @@ export const TimerSettingsScreen = () => {
 
           <Typography className="text-gray-400 mb-4">Long Break</Typography>
           <Slider
-            value={longBreakDuration}
-            onValueChange={setLongBreakDuration}
+            value={settings.longBreakDuration}
+            onValueChange={value => handleSliderChange(value, 'longBreakDuration')}
             minimumValue={15}
             maximumValue={30}
             step={5}
@@ -129,8 +145,8 @@ export const TimerSettingsScreen = () => {
                 <Typography className="text-white">Sound Alerts</Typography>
               </View>
               <Switch
-                value={true}
-                onValueChange={() => {}}
+                value={settings.soundEnabled}
+                onValueChange={value => handleToggle(value, 'soundEnabled')}
                 trackColor={{ false: '#2A2A2A', true: '#A855F7' }}
                 thumbColor="#fff"
               />
@@ -144,8 +160,8 @@ export const TimerSettingsScreen = () => {
                 <Typography className="text-white">Vibration</Typography>
               </View>
               <Switch
-                value={true}
-                onValueChange={() => {}}
+                value={settings.vibrationEnabled}
+                onValueChange={value => handleToggle(value, 'vibrationEnabled')}
                 trackColor={{ false: '#2A2A2A', true: '#F97316' }}
                 thumbColor="#fff"
               />
