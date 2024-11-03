@@ -1,7 +1,8 @@
 // src/screens/BlockedAppsScreen.tsx
-import React, { useState } from 'react';
-import { View, ScrollView } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, ScrollView, Alert, Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import * as ExpoDevice from 'expo-device';
 import {
   Typography,
   Button,
@@ -18,49 +19,91 @@ import {
 import { useNavigation } from '@react-navigation/native';
 import type { NativeStackNavigationProp } from '@react-navigation/native-stack';
 import type { RootStackParamList } from '../types/navigation';
+import { appBlockingManager } from '../lib/appBlocking';
 
 type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 
 interface AppInfo {
-  id: string;
-  name: string;
+  packageName: string;
+  appName: string;
   isBlocked: boolean;
 }
-
-const MOCK_APPS: AppInfo[] = [
-  { id: '1', name: 'Instagram', isBlocked: false },
-  { id: '2', name: 'Facebook', isBlocked: false },
-  { id: '3', name: 'TikTok', isBlocked: false },
-  { id: '4', name: 'Twitter', isBlocked: false },
-  { id: '5', name: 'YouTube', isBlocked: false },
-  { id: '6', name: 'WhatsApp', isBlocked: false },
-];
 
 export const BlockedAppsScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
   const [searchQuery, setSearchQuery] = useState('');
-  const [apps, setApps] = useState<AppInfo[]>(MOCK_APPS);
+  const [apps, setApps] = useState<AppInfo[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const toggleAppBlock = (appId: string) => {
-    setApps(prevApps =>
-      prevApps.map(app =>
-        app.id === appId
-          ? { ...app, isBlocked: !app.isBlocked }
-          : app
-      )
-    );
+  useEffect(() => {
+    loadApps();
+  }, []);
+
+  const loadApps = async () => {
+    try {
+      if (ExpoDevice.osName !== 'Android') {
+        Alert.alert(
+          'Unsupported Platform',
+          'App blocking is currently only available on Android devices.'
+        );
+        setIsLoading(false);
+        return;
+      }
+
+      // Load the list of apps
+      const installedApps = await appBlockingManager.getInstalledApps();
+      const mappedApps = installedApps.map(app => ({
+        packageName: app.packageName,
+        appName: app.appName,
+        isBlocked: app.isBlocked,
+      }));
+      setApps(mappedApps);
+    } catch (error) {
+      console.error('Error loading apps:', error);
+      Alert.alert(
+        'Error',
+        'Failed to load apps. Please try again.'
+      );
+    } finally {
+      setIsLoading(false);
+    }
   };
 
+  const toggleAppBlock = async (packageName: string, isBlocked: boolean) => {
+    try {
+      // When blocking an app, show the usage access settings prompt
+      if (!isBlocked) {
+        await appBlockingManager.openUsageAccessSettings();
+      }
+
+      await appBlockingManager.toggleAppBlocking(packageName, !isBlocked);
+      setApps(prevApps =>
+        prevApps.map(app =>
+          app.packageName === packageName
+            ? { ...app, isBlocked: !isBlocked }
+            : app
+        )
+      );
+    } catch (error) {
+      console.error('Error toggling app block:', error);
+      Alert.alert(
+        'Error',
+        'Failed to update app blocking status. Please try again.'
+      );
+    }
+  };
+
+
   const filteredApps = apps.filter(app =>
-    app.name.toLowerCase().includes(searchQuery.toLowerCase())
+    app.appName.toLowerCase().includes(searchQuery.toLowerCase())
   );
 
   const blockedAppsCount = apps.filter(app => app.isBlocked).length;
 
   const renderAppItem = (app: AppInfo) => (
     <Card
-      key={app.id}
+      key={app.packageName}
       className="bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] mb-3"
     >
       <View className="flex-row items-center justify-between">
@@ -70,14 +113,14 @@ export const BlockedAppsScreen = () => {
           </View>
           <View className="flex-1">
             <Typography className="text-white font-medium">
-              {app.name}
+              {app.appName}
             </Typography>
           </View>
         </View>
         <Button
           variant={app.isBlocked ? 'primary' : 'outline'}
           title={app.isBlocked ? 'Blocked' : 'Block'}
-          onPress={() => toggleAppBlock(app.id)}
+          onPress={() => toggleAppBlock(app.packageName, app.isBlocked)}
           className={`
             px-6 h-11 justify-center items-center
             ${app.isBlocked
@@ -136,7 +179,17 @@ export const BlockedAppsScreen = () => {
         className="flex-1 px-6"
         showsVerticalScrollIndicator={false}
       >
-        {filteredApps.map(renderAppItem)}
+        {isLoading ? (
+          <Typography className="text-gray-400 text-center py-4">
+            Loading installed apps...
+          </Typography>
+        ) : filteredApps.length === 0 ? (
+          <Typography className="text-gray-400 text-center py-4">
+            No apps found
+          </Typography>
+        ) : (
+          filteredApps.map(renderAppItem)
+        )}
       </ScrollView>
     </View>
   );

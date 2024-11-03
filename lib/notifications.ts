@@ -1,39 +1,76 @@
-// src/utils/notifications.ts
+// src/lib/notifications.ts
 import * as Notifications from 'expo-notifications';
+import { Platform } from 'react-native';
+
+// Configure notifications once at app startup
+Notifications.setNotificationHandler({
+  handleNotification: async () => ({
+    shouldShowAlert: true,
+    shouldPlaySound: true,
+    shouldSetBadge: false,
+    priority: Notifications.AndroidNotificationPriority.HIGH,
+  }),
+});
+
+// Different notification styles for different timer states
+const notificationStyles = {
+  focus: {
+    title: "🎯 Focus Session Complete!",
+    body: "Great work! Time for a break.",
+    color: '#3B82F6', // blue
+  },
+  shortBreak: {
+    title: "⏰ Break Complete",
+    body: "Ready to focus again?",
+    color: '#22C55E', // green
+  },
+  longBreak: {
+    title: "🌟 Long Break Complete",
+    body: "Feeling refreshed? Let's get back to work!",
+    color: '#8B5CF6', // purple
+  }
+};
 
 export async function setupNotifications() {
   const { status } = await Notifications.requestPermissionsAsync();
 
   if (status === 'granted') {
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
-    });
+    // Set up categories for different actions
+    await Notifications.setNotificationCategoryAsync('timer', [
+      {
+        identifier: 'start',
+        buttonTitle: 'Start Next Session',
+        options: {
+          isDestructive: false,
+          isAuthenticationRequired: false,
+        }
+      }
+    ]);
   }
 
   return status;
 }
 
-export async function scheduleNotification(
-  title: string,
-  body: string,
-  seconds: number
+export async function showTimerNotification(
+  mode: 'focus' | 'shortBreak' | 'longBreak',
+  customMessage?: string
 ) {
   try {
-    // Instead of using a delay, show notification immediately
+    const style = notificationStyles[mode];
     await Notifications.scheduleNotificationAsync({
       content: {
-        title,
-        body,
+        title: style.title,
+        body: customMessage || style.body,
         sound: true,
+        priority: 'high',
+        color: style.color,
+        categoryIdentifier: 'timer',
+        data: { mode }
       },
-      trigger: null, // This makes it show immediately
+      trigger: null,  // Show immediately
     });
   } catch (error) {
-    console.error('Error scheduling notification:', error);
+    console.error('Error showing notification:', error);
   }
 }
 

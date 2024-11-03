@@ -27,6 +27,9 @@
         "backgroundColor": "#ffffff"
       },
       "permissions": [
+        "PACKAGE_USAGE_STATS",
+        "GET_TASKS",
+        "REORDER_TASKS",
         "android.permission.WAKE_LOCK",
         "android.permission.FOREGROUND_SERVICE"
       ]

@@ -7,6 +7,8 @@ export type RootStackParamList = {
   Stats: undefined;
   BlockedApps: undefined;
   TimerSettings: undefined;
+  Tasks: undefined;
+  TaskDetail?: { taskId: string };
 };
 
 declare global {

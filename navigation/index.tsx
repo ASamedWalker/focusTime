@@ -8,6 +8,7 @@ import { TimerScreen } from "../screens/TimerScreen";
 import { StatsScreen } from "../screens/StatsScreen";
 import { BlockedAppsScreen } from "../screens/BlockedAppsScreen";
 import { TimerSettingsScreen } from "../screens/TimerSettingsScreen";
+import { TaskScreen } from "../screens/TaskScreen";
 import { RootStackParamList } from "../types/navigation";
 import { navigationRef } from '../services/navigationService';
 import { screenTransitions } from './transitions';
@@ -76,6 +77,13 @@ export const Navigation = () => {
           options={{
             animation: 'fade_from_bottom',
             gestureEnabled: true,
+          }}
+        />
+        <Stack.Screen
+          name="Tasks"
+          component={TaskScreen}
+          options={{
+            animation: 'fade',
           }}
         />
       </Stack.Navigator>

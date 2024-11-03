@@ -8,7 +8,7 @@ interface ButtonProps {
   onPress: () => void;
   title: string;
   icon?: React.ReactNode;
-  variant?: 'primary' | 'secondary' | 'outline';
+  variant?: 'primary' | 'secondary' | 'outline' | 'ghost';
   size?: 'sm' | 'md' | 'lg';
   disabled?: boolean;
   loading?: boolean;
@@ -32,7 +32,8 @@ export const Button: React.FC<ButtonProps> = ({
   const variantClasses = {
     primary: 'bg-blue-500 active:bg-blue-600',
     secondary: 'bg-[#2A2A2A] active:bg-[#333333]',
-    outline: 'border border-[#333333] bg-transparent'
+    outline: 'border border-[#333333] bg-transparent',
+    ghost: 'bg-transparent'
   };
 
   const sizeClasses = {
@@ -44,7 +45,8 @@ export const Button: React.FC<ButtonProps> = ({
   const textColorClasses = {
     primary: 'text-white',
     secondary: 'text-white',
-    outline: 'text-blue-500'
+    outline: 'text-blue-500',
+    ghost: 'text-gray-300'
   };
 
   return (
@@ -52,11 +54,12 @@ export const Button: React.FC<ButtonProps> = ({
       onPress={onPress}
       disabled={disabled || loading}
       className={cn(
-        'flex-row justify-center items-center rounded-xl',
+        'flex-row items-center rounded-xl',
         sizeClasses[size],
         variantClasses[variant],
         disabled ? 'opacity-50' : '',
         fullWidth ? 'w-full' : 'w-auto',
+        variant === 'ghost' ? 'justify-start' : 'justify-center',
         className
       )}
     >
@@ -64,7 +67,14 @@ export const Button: React.FC<ButtonProps> = ({
         <ActivityIndicator color={variant === 'outline' ? '#3B82F6' : '#FFFFFF'} />
       ) : (
         <>
-          {icon && <View className="mr-2">{icon}</View>}
+          {icon && (
+            <View className={cn(
+              "mr-2",
+              variant === 'ghost' && "opacity-70"
+            )}>
+              {icon}
+            </View>
+          )}
           <Typography
             weight="medium"
             className={cn(

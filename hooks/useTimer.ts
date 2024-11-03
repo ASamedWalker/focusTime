@@ -4,11 +4,11 @@ import { AppState, Platform } from "react-native";
 import * as BackgroundFetch from "expo-background-fetch";
 import * as TaskManager from "expo-task-manager";
 import * as Haptics from "expo-haptics";
-import { scheduleNotification, setupNotifications } from "../lib/notifications";
+import { setupNotifications, showTimerNotification } from "../lib/notifications";
 import { useTimerSettings } from "../context/TimerSettingsContext";
 import { soundManager } from "../lib/soundManager";
 import { updateBackgroundNotification } from "../lib/notifications";
-import * as Notifications from 'expo-notifications';
+import * as Notifications from "expo-notifications";
 
 export type TimerMode = "focus" | "shortBreak" | "longBreak";
 
@@ -40,7 +40,6 @@ export const useTimer = (initialTime: number = 25 * 60) => {
     message: "",
     subMessage: "",
   });
-  const [isInBackground, setIsInBackground] = useState(false);
 
   const { settings } = useTimerSettings();
   const intervalRef = useRef<NodeJS.Timeout>();
@@ -58,89 +57,131 @@ export const useTimer = (initialTime: number = 25 * 60) => {
     }
   };
 
+  const getRandomMotivationalMessage = () => {
+    const randomIndex = Math.floor(
+      Math.random() * MOTIVATIONAL_MESSAGES.length
+    );
+    return MOTIVATIONAL_MESSAGES[randomIndex];
+  };
+
+  const getModeMessage = (currentMode: TimerMode) => {
+    switch (currentMode) {
+      case "focus":
+        return {
+          title: "🎯 Focus Session Complete!",
+          body: "Great work! Take a well-deserved break.",
+        };
+      case "shortBreak":
+        return {
+          title: "⏰ Break Time Over",
+          body: "Ready to focus again?",
+        };
+      case "longBreak":
+        return {
+          title: "🌟 Long Break Complete",
+          body: "Feeling refreshed? Let's get back to work!",
+        };
+    }
+  };
+
+  // const handleSessionComplete = useCallback(async () => {
+  //   // Clear any existing interval
+  //   if (intervalRef.current) {
+  //     clearInterval(intervalRef.current);
+  //   }
+
+  //   const message = getModeMessage(mode);
+  //   try {
+  //     await scheduleNotification(message.title, message.body, 0);
+
+  //     if (settings?.soundEnabled) {
+  //       await soundManager.playSound("timerEnd");
+  //     }
+
+  //     if (settings?.vibrationEnabled) {
+  //       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  //     }
+
+  //     // Show motivational message for all sessions
+  //     const motivationalMessage = getRandomMotivationalMessage();
+  //     setCelebrationMessage(motivationalMessage);
+  //     setShowCelebration(true);
+  //     setTimeout(() => setShowCelebration(false), 3000);
+
+  //     const nextMode = mode === "focus"
+  //       ? (completedSessions + 1) % 4 === 0 ? "longBreak" : "shortBreak"
+  //       : "focus";
+
+  //     if (mode === "focus") {
+  //       setCompletedSessions(prev => prev + 1);
+  //     }
+
+  //     setMode(nextMode);
+  //     setTimeRemaining(getModeDuration(nextMode));
+  //     setIsActive(false);
+  //     setIsPaused(false);
+  //   } catch (error) {
+  //     console.error("Error completing session:", error);
+  //   }
+  // }, [mode, completedSessions, settings]);
+
   const handleSessionComplete = useCallback(async () => {
-    const message = getModeMessage(mode);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
+
     try {
-      await scheduleNotification(message.title, message.body, 0);
+      // Show message first
+      const motivationalMessage = getRandomMotivationalMessage();
+      setCelebrationMessage(motivationalMessage);
+      setShowCelebration(true);
+
+      // Show completion notification with motivational message
+      await showTimerNotification(mode, motivationalMessage.message);
+
+      // Show notification
+      const message = getModeMessage(mode);
+      await Notifications.scheduleNotificationAsync({
+        content: {
+          title: message.title,
+          body: message.body,
+          sound: true,
+          priority: "high",
+        },
+        trigger: null,
+      });
 
       if (settings?.soundEnabled) {
         await soundManager.playSound("timerEnd");
       }
 
-      if (settings.vibrationEnabled) {
-        await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      if (settings?.vibrationEnabled) {
+        await Haptics.notificationAsync(
+          Haptics.NotificationFeedbackType.Success
+        );
       }
+
+      setTimeout(() => setShowCelebration(false), 3000);
+
+      const nextMode =
+        mode === "focus"
+          ? (completedSessions + 1) % 4 === 0
+            ? "longBreak"
+            : "shortBreak"
+          : "focus";
 
       if (mode === "focus") {
-        const motivationalMessage = getRandomMotivationalMessage();
-        setCelebrationMessage(motivationalMessage);
-        setShowCelebration(true);
-        setTimeout(() => setShowCelebration(false), 3000);
+        setCompletedSessions((prev) => prev + 1);
       }
-
-      const nextMode = mode === "focus"
-        ? (completedSessions + 1) % 4 === 0 ? "longBreak" : "shortBreak"
-        : "focus";
 
       setMode(nextMode);
       setTimeRemaining(getModeDuration(nextMode));
       setIsActive(false);
-
-      if (mode === "focus") {
-        setCompletedSessions(prev => prev + 1);
-      }
+      setIsPaused(false);
     } catch (error) {
       console.error("Error completing session:", error);
     }
   }, [mode, completedSessions, settings]);
-
-  // Single app state effect handler
-  useEffect(() => {
-    const subscription = AppState.addEventListener("change", (nextAppState) => {
-      const currentState = appStateRef.current;
-
-      if (currentState.match(/active/) && nextAppState === "background") {
-        setIsInBackground(true);
-        if (isActive) {
-          backgroundTimeRef.current = Date.now();
-          updateBackgroundNotification(timeRemaining, mode, isActive);
-        }
-      } else if (currentState === "background" && nextAppState === "active") {
-        setIsInBackground(false);
-        Notifications.dismissAllNotificationsAsync();
-
-        if (isActive && backgroundTimeRef.current) {
-          const now = Date.now();
-          const timeInBackground = now - backgroundTimeRef.current;
-          const secondsInBackground = Math.floor(timeInBackground / 1000);
-
-          setTimeRemaining(prevTime => {
-            const newTime = Math.max(0, prevTime - secondsInBackground);
-            if (newTime === 0 && prevTime !== 0) {
-              handleSessionComplete();
-            }
-            return newTime;
-          });
-        }
-      }
-
-      appStateRef.current = nextAppState;
-    });
-
-    return () => {
-      subscription.remove();
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      Notifications.dismissAllNotificationsAsync();
-    };
-  }, [isActive, mode, timeRemaining, handleSessionComplete]);
-
-  // Initialize sounds
-  useEffect(() => {
-    soundManager.loadSounds();
-    return () => soundManager.unloadSounds();
-  }, []);
 
   const startTimer = useCallback(async () => {
     try {
@@ -151,17 +192,16 @@ export const useTimer = (initialTime: number = 25 * 60) => {
         await soundManager.playSound("timerStart");
       }
 
-      await Notifications.dismissAllNotificationsAsync();
+      // Clear any existing interval
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
 
       setIsActive(true);
       setIsPaused(false);
 
       intervalRef.current = setInterval(() => {
-        setTimeRemaining(prev => {
-          if (prev <= 4 && prev > 1 && settings.soundEnabled) {
-            soundManager.playSound("tick");
-          }
-
+        setTimeRemaining((prev) => {
           if (prev <= 1) {
             clearInterval(intervalRef.current);
             handleSessionComplete();
@@ -176,39 +216,82 @@ export const useTimer = (initialTime: number = 25 * 60) => {
   }, [settings, handleSessionComplete]);
 
   const pauseTimer = useCallback(async () => {
-    try {
-      if (settings?.vibrationEnabled) {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
-
-      await Notifications.dismissAllNotificationsAsync();
-
-      if (intervalRef.current) {
-        clearInterval(intervalRef.current);
-      }
-      setIsActive(false);
-      setIsPaused(true);
-    } catch (error) {
-      console.error("Error pausing timer:", error);
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
     }
+
+    if (settings?.vibrationEnabled) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    setIsActive(false);
+    setIsPaused(true);
   }, [settings]);
 
   const resetTimer = useCallback(async () => {
-    try {
-      if (settings?.vibrationEnabled) {
-        await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      }
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+    }
 
+    if (settings?.vibrationEnabled) {
+      await Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+    }
+
+    setTimeRemaining(getModeDuration(mode));
+    setIsActive(false);
+    setIsPaused(false);
+  }, [mode, settings]);
+
+  // Simple app state handling
+  useEffect(() => {
+    const subscription = AppState.addEventListener("change", (nextAppState) => {
+      if (
+        appStateRef.current.match(/inactive|background/) &&
+        nextAppState === "active" &&
+        isActive
+      ) {
+        // Resume timer with adjusted time
+        const now = Date.now();
+        const backgroundStart =
+          appStateRef.current === "background" ? now : undefined;
+        if (backgroundStart) {
+          const timeElapsed = Math.floor((now - backgroundStart) / 1000);
+          setTimeRemaining((prev) => {
+            const newTime = Math.max(0, prev - timeElapsed);
+            if (newTime === 0) {
+              handleSessionComplete();
+            }
+            return newTime;
+          });
+        }
+      }
+      appStateRef.current = nextAppState;
+    });
+
+    return () => {
+      subscription.remove();
       if (intervalRef.current) {
         clearInterval(intervalRef.current);
       }
-      setTimeRemaining(getModeDuration(mode));
-      setIsActive(false);
-      setIsPaused(false);
-    } catch (error) {
-      console.error("Error resetting timer:", error);
-    }
-  }, [mode, settings]);
+    };
+  }, [isActive, handleSessionComplete]);
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, []);
+
+  // Initialize sounds
+  useEffect(() => {
+    soundManager.loadSounds();
+    return () => {
+      soundManager.unloadSounds();
+    };
+  }, []);
 
   const switchMode = useCallback((newMode: TimerMode) => {
     setMode(newMode);
