@@ -8,13 +8,13 @@ import {
   Button,
   IconButton,
   Logo,
-  StatsDisplay,
 } from "../components/common";
+import TimeContextWidget from "../components/Widget/TimeContextWidget";
+import ProgressSection from "../components/Progress/ProgressSection";
+import TasksPreview from "../components/task/TasksPreview";
 import {
   Play,
-  Pause,
   ListTodo,
-  Timer,
   Settings,
   History,
   Target,
@@ -32,22 +32,21 @@ type NavigationProp = NativeStackNavigationProp<RootStackParamList>;
 export const HomeScreen = () => {
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<NavigationProp>();
-  const [isActive, setIsActive] = React.useState(false);
   const { getTodayStats } = useStatistics();
-  const { tasks, activeTask } = useTask();
+  const { tasks } = useTask();
   const todayStats = getTodayStats();
 
-  // Get pending tasks for today
-  const pendingTasks = tasks.filter((task) => task.status === "pending");
   const completedTodayCount = tasks.filter(
     (task) =>
       task.status === "completed" &&
       new Date(task.completedAt!).toDateString() === new Date().toDateString()
   ).length;
 
+  const pendingTasks = tasks.filter((task) => task.status === "pending");
+
   return (
     <View className="flex-1 bg-[#121212]" style={{ paddingTop: insets.top }}>
-      {/* Header */}
+      {/* Header with Logo and Actions */}
       <View className="px-6 py-4 flex-row justify-between items-center">
         <View>
           <Logo size="lg" />
@@ -72,45 +71,15 @@ export const HomeScreen = () => {
       </View>
 
       <ScrollView className="flex-1" showsVerticalScrollIndicator={false}>
-        {/* Current Task & Timer */}
-        <View className="px-6 py-4">
-          <Card className="bg-[#1E1E1E] p-6 rounded-2xl border border-[#2A2A2A]">
-            {/* Timer Display */}
-            <View className="items-center mb-8">
-              <Typography
-                variant="display"
-                weight="bold"
-                className="text-white mb-3 font-bold tracking-tight"
-              >
-                25:00
-              </Typography>
-              <Typography className="text-gray-400 uppercase tracking-wide text-sm">
-                Focus Session
-              </Typography>
-            </View>
+        {/* Time Context Section */}
+        {/* <View className="px-6 py-2">
+          <TimeContextWidget className="mb-4" />
 
-            {/* Action Buttons */}
-            <View className="flex-row space-x-5">
-              <Button
-                title="Tasks"
-                icon={<ListTodo size={18} color="#fff" />}
-                variant="secondary"
-                onPress={() => navigation.navigate("Tasks")}
-                className="flex-1 bg-[#2A2A2A] h-14 text-white font-medium"
-              />
-              <Button
-                title="Start Focus"
-                icon={<Play size={18} color="#fff" />}
-                variant="primary"
-                onPress={() => navigation.navigate("Timer")}
-                className="flex-1 bg-blue-600 h-14 ml-3"
-              />
-            </View>
-          </Card>
-        </View>
 
-        {/* Today's Progress */}
-        <View className="px-6 py-2">
+        </View> */}
+
+        {/* Today's Progress - Enhanced spacing */}
+        {/* <View className="px-6 py-4 mt-2">
           <Typography
             variant="h3"
             weight="semibold"
@@ -135,7 +104,7 @@ export const HomeScreen = () => {
                 </Typography>
               </View>
             </Card>
-            <Card className="flex-1 p-4 bg-[#1E1E1E] rounded-xl border border-[#2A2A2A] ml-3">
+            <Card className="flex-1 p-4 bg-[#1E1E1E] rounded-xl border border-[#2A2A2A]">
               <View className="items-center">
                 <View className="bg-green-900/20 p-3 rounded-lg mb-2">
                   <CheckCircle2 size={20} color="#22C55E" />
@@ -152,10 +121,10 @@ export const HomeScreen = () => {
               </View>
             </Card>
           </View>
-        </View>
+        </View> */}
 
-        {/* Pending Tasks */}
-        <View className="px-6 py-4">
+        {/* Pending Tasks - Improved spacing */}
+        {/* <View className="px-6 pb-6">
           <View className="flex-row justify-between items-center mb-4">
             <Typography variant="h3" weight="semibold" className="text-white">
               Up Next
@@ -204,6 +173,35 @@ export const HomeScreen = () => {
               </Card>
             ))
           )}
+        </View> */}
+
+        {/* Progress Section And Task Preview*/}
+        <View className="px-6 space-y-4">
+          <TimeContextWidget className="mb-4"/>
+          {/* Start Focus Button - Now more prominent */}
+          <Card className="bg-[#1E1E1E] p-4 rounded-xl border border-[#2A2A2A] mb-4">
+            <Button
+              title="Start Focus Session"
+              icon={<Play size={20} color="#fff" />}
+              variant="primary"
+              onPress={() => navigation.navigate("Timer")}
+              className="bg-blue-600 h-14"
+            />
+          </Card>
+          <ProgressSection
+            stats={{
+              todayMinutes: 120,
+              completedTasks: 3,
+              totalTasks: 5,
+              streak: 4,
+            }}
+            onPress={() => navigation.navigate("Stats")}
+          />
+          <TasksPreview
+            tasks={pendingTasks}
+            onTaskPress={(task) => handleTaskPress(task)}
+            onViewAll={() => navigation.navigate("Tasks")}
+          />
         </View>
       </ScrollView>
     </View>
