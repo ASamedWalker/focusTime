@@ -2,10 +2,11 @@
 export interface Task {
   id: string;
   title: string;
-  description?: string;
-  priority: 'low' | 'medium' | 'high';
   status: 'pending' | 'in_progress' | 'completed';
-  createdAt: number;
-  completedAt?: number;
+  priority: 'high' | 'medium' | 'low';
+  duration: number;
   focusSessionsSpent: number;
+  createdAt: Date;
+  completedAt?: Date;
+  category?: string;
 }

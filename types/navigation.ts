@@ -2,7 +2,13 @@
 export type RootStackParamList = {
   Home: undefined;
   Settings: undefined;
-  Timer: undefined;
+  Timer: {
+    task?: {
+      id: string;
+      title: string;
+      duration?: number;
+    }
+  } | undefined;
   Profile: undefined;
   Stats: undefined;
   BlockedApps: undefined;
